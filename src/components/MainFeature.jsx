@@ -1436,7 +1436,6 @@ const MainFeature = () => {
                     </div>
                   </div>
                 </div>
-    )
                 <div className="space-y-4">
                   <h4 className="text-lg font-semibold text-surface-900 dark:text-white border-b border-surface-200 dark:border-surface-700 pb-2">
                     Recurrence Pattern
