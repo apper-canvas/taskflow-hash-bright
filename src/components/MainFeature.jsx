@@ -65,10 +65,6 @@ const MainFeature = () => {
     'text/plain', 'text/csv', 'application/zip', 'application/x-zip-compressed'
   ]
 
-  const teamMembers = [
-    // ... existing team members ...
-  ]
-
   const recurringPatterns = [
     { value: 'daily', label: 'Daily', icon: 'Calendar' },
     { value: 'weekly', label: 'Weekly', icon: 'CalendarDays' },
@@ -1277,6 +1273,7 @@ const MainFeature = () => {
                         </div>
                       </div>
                 </div>
+
                         <h5 className="text-sm font-semibold text-surface-900 dark:text-white mb-3">
                           Generated Tasks (Last 5)
                         </h5>
@@ -1526,7 +1523,8 @@ const MainFeature = () => {
                         ))}
                       </div>
                     </div>
-  // Task Detail Modal Component
+                  )}
+
                   {/* End Conditions */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -1562,6 +1560,7 @@ const MainFeature = () => {
                     </div>
                   </div>
                 </div>
+
                 {/* Assignment */}
                 <div>
                   <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
