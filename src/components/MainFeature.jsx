@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Link } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { format, isToday, isTomorrow, isPast, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, isSameMonth } from 'date-fns'
 import ApperIcon from './ApperIcon'
@@ -290,16 +291,26 @@ const MainFeature = () => {
               Organize, prioritize, and track your tasks with intelligent workflows
             </p>
           </div>
-          
-          <motion.button
-            onClick={() => setShowForm(true)}
-            className="group flex items-center space-x-2 px-4 sm:px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white font-semibold rounded-xl sm:rounded-2xl shadow-soft hover:shadow-card transition-all duration-300"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <ApperIcon name="Plus" className="w-4 h-4 sm:w-5 sm:h-5 group-hover:rotate-90 transition-transform duration-300" />
-            <span className="text-sm sm:text-base">Create Task</span>
-          </motion.button>
+
+          <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
+            <Link
+              to="/dashboard"
+              className="group flex items-center space-x-2 px-4 sm:px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white font-semibold rounded-xl sm:rounded-2xl shadow-soft hover:shadow-card transition-all duration-300"
+            >
+              <ApperIcon name="BarChart3" className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform duration-300" />
+              <span className="text-sm sm:text-base">Dashboard</span>
+            </Link>
+            
+            <motion.button
+              onClick={() => setShowForm(true)}
+              className="group flex items-center space-x-2 px-4 sm:px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white font-semibold rounded-xl sm:rounded-2xl shadow-soft hover:shadow-card transition-all duration-300"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <ApperIcon name="Plus" className="w-4 h-4 sm:w-5 sm:h-5 group-hover:rotate-90 transition-transform duration-300" />
+              <span className="text-sm sm:text-base">Create Task</span>
+            </motion.button>
+          </div>
         </div>
 
         {/* Stats Row */}
