@@ -851,6 +851,11 @@ const MainFeature = () => {
       </div>
     )
   }
+
+  // Task Detail Modal Component
+  const TaskDetailModal = ({ task, onClose }) => {
+    if (!task) return null
+
     const priorityConfig = getPriorityConfig(task.priority)
     const statusConfig = getStatusConfig(task.status)
     const categoryConfig = getCategoryConfig(task.category)
@@ -923,10 +928,8 @@ const MainFeature = () => {
     )
   }
 
-  // Task Detail Modal Component
-  const TaskDetailModal = ({ task, onClose }) => {
-    if (!task) return null
-
+  return (
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
       {/* Task Detail Modal */}
       <AnimatePresence>
         {selectedTask && (
@@ -1609,8 +1612,9 @@ const MainFeature = () => {
         </AnimatePresence>
       </motion.div>
     </div>
+  )
+}
 
-  return (
   )
 }
 
