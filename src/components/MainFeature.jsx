@@ -21,7 +21,8 @@ const MainFeature = () => {
     priority: 'medium',
     dueDate: '',
     status: 'pending',
-    category: 'personal'
+    category: 'personal',
+    attachments: []
   })
 
   const priorities = [
@@ -43,6 +44,25 @@ const MainFeature = () => {
     { value: 'urgent', label: 'Urgent', color: 'bg-red-500' },
     { value: 'ideas', label: 'Ideas', color: 'bg-purple-500' }
   ]
+
+  const allowedFileTypes = [
+    'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+    'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'text/plain', 'text/csv', 'application/zip', 'application/x-zip-compressed'
+  ]
+
+  const getFileIcon = (fileType) => {
+    if (fileType.startsWith('image/')) return 'Image'
+    if (fileType === 'application/pdf') return 'FileText'
+    if (fileType.includes('word') || fileType.includes('document')) return 'FileText'
+    if (fileType.includes('excel') || fileType.includes('sheet')) return 'FileSpreadsheet'
+    if (fileType.includes('powerpoint') || fileType.includes('presentation')) return 'Presentation'
+    if (fileType === 'text/plain') return 'FileText'
+    if (fileType.includes('zip')) return 'Archive'
+    return 'File'
+  }
 
   useEffect(() => {
     const savedTasks = localStorage.getItem('taskflow-tasks')
@@ -88,7 +108,8 @@ const MainFeature = () => {
       priority: 'medium',
       dueDate: '',
       status: 'pending',
-      category: 'personal'
+      category: 'personal',
+      attachments: []
     })
     setShowForm(false)
     setEditingTask(null)
@@ -115,6 +136,93 @@ const MainFeature = () => {
       return task
     }))
     toast.success('Task status updated!')
+  }
+
+  const handleFileUpload = (e) => {
+    const files = Array.from(e.target.files)
+    
+    if (files.length === 0) return
+
+    // Validate file count (max 5 files per task)
+    if (formData.attachments.length + files.length > 5) {
+      toast.error('Maximum 5 files allowed per task!')
+      return
+    }
+
+    const validFiles = []
+    
+    files.forEach(file => {
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`File "${file.name}" is too large. Maximum size is 10MB.`)
+        return
+      }
+
+      // Validate file type
+      if (!allowedFileTypes.includes(file.type)) {
+        toast.error(`File type "${file.type}" is not supported.`)
+        return
+      }
+
+      validFiles.push(file)
+    })
+
+    if (validFiles.length === 0) return
+
+    // Convert files to base64 for storage
+    Promise.all(validFiles.map(file => {
+      return new Promise((resolve) => {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          resolve({
+            id: Date.now() + Math.random(),
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            data: e.target.result
+          })
+        }
+        reader.readAsDataURL(file)
+      })
+    })).then(fileData => {
+      setFormData(prev => ({
+        ...prev,
+        attachments: [...prev.attachments, ...fileData]
+      }))
+      toast.success(`${fileData.length} file(s) uploaded successfully!`)
+    }).catch(() => {
+      toast.error('Failed to upload files. Please try again.')
+    })
+  }
+
+  const removeAttachment = (attachmentId) => {
+    setFormData(prev => ({
+      ...prev,
+      attachments: prev.attachments.filter(att => att.id !== attachmentId)
+    }))
+    toast.success('File removed successfully!')
+  }
+
+  const downloadAttachment = (attachment) => {
+    try {
+      const link = document.createElement('a')
+      link.href = attachment.data
+      link.download = attachment.name
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      toast.success(`Downloaded: ${attachment.name}`)
+    } catch (error) {
+      toast.error('Failed to download file')
+    }
+  }
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
   const filteredTasks = tasks.filter(task => {
@@ -540,6 +648,74 @@ const MainFeature = () => {
                   </div>
                 </div>
 
+                {/* File Upload Section */}
+                <div>
+                  <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
+                    Attachments
+                  </label>
+                  <div className="border-2 border-dashed border-surface-300 dark:border-surface-600 rounded-xl p-4 hover:border-primary dark:hover:border-primary transition-colors">
+                    <input
+                      type="file"
+                      multiple
+                      accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      id="file-upload"
+                    />
+                    <label
+                      htmlFor="file-upload"
+                      className="cursor-pointer flex flex-col items-center justify-center text-center"
+                    >
+                      <ApperIcon name="Upload" className="w-8 h-8 text-surface-400 dark:text-surface-500 mb-2" />
+                      <p className="text-sm text-surface-600 dark:text-surface-400 mb-1">
+                        Click to upload files or drag and drop
+                      </p>
+                      <p className="text-xs text-surface-500 dark:text-surface-500">
+                        Maximum 5 files, 10MB each. Supports images, PDFs, documents, and archives.
+                      </p>
+                    </label>
+                  </div>
+
+                  {/* Uploaded Files Preview */}
+                  {formData.attachments.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <p className="text-sm font-medium text-surface-700 dark:text-surface-300">
+                        Uploaded Files ({formData.attachments.length}/5)
+                      </p>
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {formData.attachments.map(attachment => (
+                          <div
+                            key={attachment.id}
+                            className="flex items-center justify-between p-3 bg-surface-50 dark:bg-surface-700 rounded-lg"
+                          >
+                            <div className="flex items-center space-x-3 flex-1 min-w-0">
+                              <ApperIcon 
+                                name={getFileIcon(attachment.type)} 
+                                className="w-5 h-5 text-primary flex-shrink-0" 
+                              />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-surface-900 dark:text-white truncate">
+                                  {attachment.name}
+                                </p>
+                                <p className="text-xs text-surface-500 dark:text-surface-400">
+                                  {formatFileSize(attachment.size)}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeAttachment(attachment.id)}
+                              className="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition-colors"
+                            >
+                              <ApperIcon name="X" className="w-4 h-4 text-red-500" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 pt-4">
                   <button
                     type="submit"
@@ -700,6 +876,30 @@ const MainFeature = () => {
                         )}
                       </div>
                     </div>
+
+                      {/* Attachments Display */}
+                      {task.attachments && task.attachments.length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-surface-200 dark:border-surface-700">
+                          <p className="text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
+                            Attachments ({task.attachments.length})
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {task.attachments.map(attachment => (
+                              <button
+                                key={attachment.id}
+                                onClick={() => downloadAttachment(attachment)}
+                                className="flex items-center space-x-2 px-3 py-2 bg-surface-100 dark:bg-surface-700 hover:bg-surface-200 dark:hover:bg-surface-600 rounded-lg transition-colors text-sm group"
+                              >
+                                <ApperIcon name={getFileIcon(attachment.type)} className="w-4 h-4 text-primary" />
+                                <span className="text-surface-700 dark:text-surface-300 truncate max-w-[120px]">
+                                  {attachment.name}
+                                </span>
+                                <ApperIcon name="Download" className="w-3 h-3 text-surface-500 group-hover:text-primary transition-colors" />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                   </div>
 
                   {/* Overdue Warning */}
