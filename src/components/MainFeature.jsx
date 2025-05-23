@@ -22,7 +22,7 @@ const MainFeature = () => {
     dueDate: '',
     status: 'pending',
     category: 'personal',
-    attachments: []
+    attachments: [],
     assignedTo: null
   })
 
@@ -180,10 +180,10 @@ const MainFeature = () => {
       status: 'pending',
       category: 'personal',
       attachments: []
-      attachments: [],
       assignedTo: null
-    setShowForm(false)
-    setEditingTask(null)
+  })
+  setShowForm(false)
+  setEditingTask(null)
   }
 
   const handleEdit = (task) => {
@@ -1099,113 +1099,6 @@ const MainFeature = () => {
                       </div>
                     </div>
                   )}
-
-                  {/* Overdue Warning */}
-                  {isOverdue && (
-                    <div className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                  )}
-                </motion.div>
-              )
-            })
-          )}
-        </AnimatePresence>
-      </motion.div>
-    </div>
-  )
-}
-
-export default MainFeature
-                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-3">
-                        <div className="flex-1 min-w-0 mb-2 sm:mb-0">
-                          <h4 className={`text-lg sm:text-xl font-semibold mb-1 ${
-                            task.status === 'completed' ? 'line-through text-surface-500' : 'text-surface-900 dark:text-white'
-                          }`}>
-                            {task.title}
-                          </h4>
-                          {task.description && (
-                            <p className="text-sm sm:text-base text-surface-600 dark:text-surface-300 line-clamp-2">
-                              {task.description}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Task Actions */}
-                        <div className="flex items-center space-x-2 flex-shrink-0">
-                          <button
-                            onClick={() => handleEdit(task)}
-                            className="p-2 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-lg transition-colors"
-                          >
-                            <ApperIcon name="Edit2" className="w-4 h-4 text-surface-500 hover:text-primary" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(task.id)}
-                            className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                          >
-                            <ApperIcon name="Trash2" className="w-4 h-4 text-surface-500 hover:text-red-500" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Task Meta */}
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                        {/* Priority Badge */}
-                        <div className={`flex items-center space-x-1 px-2 sm:px-3 py-1 ${priorityConfig.color} text-white rounded-lg text-xs sm:text-sm font-medium`}>
-                          <ApperIcon name={priorityConfig.icon} className="w-3 h-3 sm:w-4 sm:h-4" />
-                          <span>{priorityConfig.label}</span>
-                        </div>
-
-                        {/* Category Badge */}
-                        <div className={`flex items-center space-x-1 px-2 sm:px-3 py-1 ${categoryConfig.color} text-white rounded-lg text-xs sm:text-sm font-medium`}>
-                          <ApperIcon name="Tag" className="w-3 h-3 sm:w-4 sm:h-4" />
-                          <span>{categoryConfig.label}</span>
-                        </div>
-
-                        {/* Status Badge */}
-                        <div className={`flex items-center space-x-1 px-2 sm:px-3 py-1 ${statusConfig.color} text-white rounded-lg text-xs sm:text-sm font-medium`}>
-                          <ApperIcon name={statusConfig.icon} className="w-3 h-3 sm:w-4 sm:h-4" />
-                          <span>{statusConfig.label}</span>
-                        </div>
-
-                        {/* Due Date */}
-                        {task.dueDate && (
-                          <div className={`flex items-center space-x-1 px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium ${
-                            isOverdue
-                              ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'
-                              : isToday(new Date(task.dueDate))
-                              ? 'bg-secondary/20 text-secondary-dark'
-                              : 'bg-surface-100 dark:bg-surface-700 text-surface-600 dark:text-surface-300'
-                          }`}>
-                            <ApperIcon name="Calendar" className="w-3 h-3 sm:w-4 sm:h-4" />
-                            <span>{formatDueDate(task.dueDate)}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                      {/* Attachments Display */}
-                      {task.attachments && task.attachments.length > 0 && (
-                        <div className="mt-4 pt-4 border-t border-surface-200 dark:border-surface-700">
-                          <p className="text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
-                            Attachments ({task.attachments.length})
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {task.attachments.map(attachment => (
-                              <button
-                                key={attachment.id}
-                                onClick={() => downloadAttachment(attachment)}
-                                className="flex items-center space-x-2 px-3 py-2 bg-surface-100 dark:bg-surface-700 hover:bg-surface-200 dark:hover:bg-surface-600 rounded-lg transition-colors text-sm group"
-                              >
-                                <ApperIcon name={getFileIcon(attachment.type)} className="w-4 h-4 text-primary" />
-                                <span className="text-surface-700 dark:text-surface-300 truncate max-w-[120px]">
-                                  {attachment.name}
-                                </span>
-                                <ApperIcon name="Download" className="w-3 h-3 text-surface-500 group-hover:text-primary transition-colors" />
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                  </div>
 
                   {/* Overdue Warning */}
                   {isOverdue && (
