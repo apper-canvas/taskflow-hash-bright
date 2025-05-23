@@ -179,11 +179,11 @@ const MainFeature = () => {
       dueDate: '',
       status: 'pending',
       category: 'personal',
-      attachments: []
+      attachments: [],
       assignedTo: null
-  })
-  setShowForm(false)
-  setEditingTask(null)
+    })
+    setShowForm(false)
+    setEditingTask(null)
   }
 
   const handleEdit = (task) => {
