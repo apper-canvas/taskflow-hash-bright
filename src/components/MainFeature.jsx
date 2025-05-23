@@ -23,6 +23,7 @@ const MainFeature = () => {
     status: 'pending',
     category: 'personal',
     attachments: []
+    assignedTo: null
   })
 
   const priorities = [
@@ -53,6 +54,73 @@ const MainFeature = () => {
     'text/plain', 'text/csv', 'application/zip', 'application/x-zip-compressed'
   ]
 
+  const teamMembers = [
+    { 
+      id: 'tm-1', 
+      name: 'Sarah Chen', 
+      email: 'sarah.chen@company.com', 
+      role: 'Product Manager', 
+      avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face',
+      initials: 'SC'
+    },
+    { 
+      id: 'tm-2', 
+      name: 'Marcus Rodriguez', 
+      email: 'marcus.rodriguez@company.com', 
+      role: 'Lead Developer', 
+      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+      initials: 'MR'
+    },
+    { 
+      id: 'tm-3', 
+      name: 'Emma Thompson', 
+      email: 'emma.thompson@company.com', 
+      role: 'UI/UX Designer', 
+      avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face',
+      initials: 'ET'
+    },
+    { 
+      id: 'tm-4', 
+      name: 'David Kim', 
+      email: 'david.kim@company.com', 
+      role: 'QA Engineer', 
+      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
+      initials: 'DK'
+    },
+    { 
+      id: 'tm-5', 
+      name: 'Lisa Wang', 
+      email: 'lisa.wang@company.com', 
+      role: 'Data Analyst', 
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=face',
+      initials: 'LW'
+    },
+    { 
+      id: 'tm-6', 
+      name: 'Alex Johnson', 
+      email: 'alex.johnson@company.com', 
+      role: 'DevOps Engineer', 
+      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face',
+      initials: 'AJ'
+    },
+    { 
+      id: 'tm-7', 
+      name: 'Maya Patel', 
+      email: 'maya.patel@company.com', 
+      role: 'Marketing Specialist', 
+      avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face',
+      initials: 'MP'
+    },
+    { 
+      id: 'tm-8', 
+      name: 'James Wilson', 
+      email: 'james.wilson@company.com', 
+      role: 'Backend Developer', 
+      avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop&crop=face',
+      initials: 'JW'
+    }
+  ]
+
   const getFileIcon = (fileType) => {
     if (fileType.startsWith('image/')) return 'Image'
     if (fileType === 'application/pdf') return 'FileText'
@@ -63,6 +131,8 @@ const MainFeature = () => {
     if (fileType.includes('zip')) return 'Archive'
     return 'File'
   }
+
+  const getTeamMember = (memberId) => teamMembers.find(member => member.id === memberId)
 
   useEffect(() => {
     const savedTasks = localStorage.getItem('taskflow-tasks')
@@ -110,7 +180,8 @@ const MainFeature = () => {
       status: 'pending',
       category: 'personal',
       attachments: []
-    })
+      attachments: [],
+      assignedTo: null
     setShowForm(false)
     setEditingTask(null)
   }
@@ -648,6 +719,24 @@ const MainFeature = () => {
                   </div>
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
+                    Assign to Team Member
+                  </label>
+                  <select
+                    value={formData.assignedTo || ''}
+                    onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value || null })}
+                    className="w-full px-4 py-3 bg-surface-50 dark:bg-surface-700 border border-surface-300 dark:border-surface-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-sm sm:text-base"
+                  >
+                    <option value="">Unassigned</option>
+                    {teamMembers.map(member => (
+                      <option key={member.id} value={member.id}>
+                        {member.name} - {member.role}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 {/* File Upload Section */}
                 <div>
                   <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
@@ -809,7 +898,223 @@ const MainFeature = () => {
                     </button>
 
                     {/* Task Content */}
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 flex space-x-4">
+                      {/* Task Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-3">
+                          <div className="flex-1 min-w-0 mb-2 sm:mb-0">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <h4 className={`text-lg sm:text-xl font-semibold ${
+                                task.status === 'completed' ? 'line-through text-surface-500' : 'text-surface-900 dark:text-white'
+                              }`}>
+                                {task.title}
+                              </h4>
+                              {task.assignedTo && (
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-xs text-surface-500 dark:text-surface-400">assigned to</span>
+                                  <div className="flex items-center space-x-1">
+                                    <div className="w-5 h-5 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                                      {getTeamMember(task.assignedTo)?.avatar ? (
+                                        <img 
+                                          src={getTeamMember(task.assignedTo).avatar} 
+                                          alt={getTeamMember(task.assignedTo).name}
+                                          className="w-5 h-5 rounded-full object-cover"
+                                        />
+                                      ) : (
+                                        <span className="text-xs font-medium text-primary">
+                                          {getTeamMember(task.assignedTo)?.initials}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="text-xs font-medium text-surface-700 dark:text-surface-300">
+                                      {getTeamMember(task.assignedTo)?.name.split(' ')[0]}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            {task.description && (
+                              <p className="text-sm sm:text-base text-surface-600 dark:text-surface-300 line-clamp-2">
+                                {task.description}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Task Actions */}
+                          <div className="flex items-center space-x-2 flex-shrink-0">
+                            <button
+                              onClick={() => handleEdit(task)}
+                              className="p-2 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-lg transition-colors"
+                            >
+                              <ApperIcon name="Edit2" className="w-4 h-4 text-surface-500 hover:text-primary" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(task.id)}
+                              className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                            >
+                              <ApperIcon name="Trash2" className="w-4 h-4 text-surface-500 hover:text-red-500" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Task Meta */}
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                          {/* Priority Badge */}
+                          <div className={`flex items-center space-x-1 px-2 sm:px-3 py-1 ${priorityConfig.color} text-white rounded-lg text-xs sm:text-sm font-medium`}>
+                            <ApperIcon name={priorityConfig.icon} className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span>{priorityConfig.label}</span>
+                          </div>
+
+                          {/* Category Badge */}
+                          <div className={`flex items-center space-x-1 px-2 sm:px-3 py-1 ${categoryConfig.color} text-white rounded-lg text-xs sm:text-sm font-medium`}>
+                            <ApperIcon name="Tag" className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span>{categoryConfig.label}</span>
+                          </div>
+
+                          {/* Status Badge */}
+                          <div className={`flex items-center space-x-1 px-2 sm:px-3 py-1 ${statusConfig.color} text-white rounded-lg text-xs sm:text-sm font-medium`}>
+                            <ApperIcon name={statusConfig.icon} className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span>{statusConfig.label}</span>
+                          </div>
+
+                          {/* Due Date */}
+                          {task.dueDate && (
+                            <div className={`flex items-center space-x-1 px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium ${
+                              isOverdue
+                                ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'
+                                : isToday(new Date(task.dueDate))
+                                ? 'bg-secondary/20 text-secondary-dark'
+                                : 'bg-surface-100 dark:bg-surface-700 text-surface-600 dark:text-surface-300'
+                            }`}>
+                              <ApperIcon name="Calendar" className="w-3 h-3 sm:w-4 sm:h-4" />
+                              <span>{formatDueDate(task.dueDate)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Assigned Team Member Display */}
+                      {task.assignedTo && (
+                        <div className="flex-shrink-0">
+                          <div className="flex flex-col items-center space-y-2">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center border-2 border-white dark:border-surface-800 shadow-soft">
+                              {getTeamMember(task.assignedTo)?.avatar ? (
+                                <img 
+                                  src={getTeamMember(task.assignedTo).avatar} 
+                                  alt={getTeamMember(task.assignedTo).name}
+                                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg object-cover"
+                                />
+                              ) : (
+                                <span className="text-sm sm:text-base font-bold text-primary">
+                                  {getTeamMember(task.assignedTo)?.initials}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-center">
+                              <p className="text-xs font-medium text-surface-700 dark:text-surface-300">
+                                {getTeamMember(task.assignedTo)?.name.split(' ')[0]}
+                              </p>
+                              <p className="text-xs text-surface-500 dark:text-surface-400">
+                                {getTeamMember(task.assignedTo)?.role.split(' ')[0]}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Team Member Details - Expanded when viewing task details */}
+                  {selectedTask?.id === task.id && task.assignedTo && (
+                    <div className="mt-4 pt-4 border-t border-surface-200 dark:border-surface-700">
+                      <h5 className="text-sm font-semibold text-surface-900 dark:text-white mb-3">
+                        Assigned Team Member
+                      </h5>
+                      <div className="flex items-center space-x-4 p-4 bg-gradient-to-r from-surface-50 to-primary/5 dark:from-surface-700 dark:to-surface-800 rounded-xl">
+                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center border-2 border-white dark:border-surface-700 shadow-soft">
+                          {getTeamMember(task.assignedTo)?.avatar ? (
+                            <img 
+                              src={getTeamMember(task.assignedTo).avatar} 
+                              alt={getTeamMember(task.assignedTo).name}
+                              className="w-14 h-14 rounded-xl object-cover"
+                            />
+                          ) : (
+                            <span className="text-lg font-bold text-primary">
+                              {getTeamMember(task.assignedTo)?.initials}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <h6 className="text-lg font-bold text-surface-900 dark:text-white">
+                            {getTeamMember(task.assignedTo)?.name}
+                          </h6>
+                          <p className="text-sm text-primary font-medium">
+                            {getTeamMember(task.assignedTo)?.role}
+                          </p>
+                          <p className="text-sm text-surface-600 dark:text-surface-400">
+                            {getTeamMember(task.assignedTo)?.email}
+                          </p>
+                        </div>
+                        <div className="flex flex-col space-y-2">
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(getTeamMember(task.assignedTo)?.email)
+                              toast.success('Email copied to clipboard!')
+                            }}
+                            className="p-2 bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors"
+                          >
+                            <ApperIcon name="Mail" className="w-4 h-4 text-primary" />
+                          </button>
+                          <button
+                            onClick={() => toast.info(`Contact ${getTeamMember(task.assignedTo)?.name} for task updates`)}
+                            className="p-2 bg-surface-100 dark:bg-surface-600 hover:bg-surface-200 dark:hover:bg-surface-500 rounded-lg transition-colors"
+                          >
+                            <ApperIcon name="MessageCircle" className="w-4 h-4 text-surface-600 dark:text-surface-300" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Attachments Display */}
+                  {task.attachments && task.attachments.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-surface-200 dark:border-surface-700">
+                      <p className="text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
+                        Attachments ({task.attachments.length})
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {task.attachments.map(attachment => (
+                          <button
+                            key={attachment.id}
+                            onClick={() => downloadAttachment(attachment)}
+                            className="flex items-center space-x-2 px-3 py-2 bg-surface-100 dark:bg-surface-700 hover:bg-surface-200 dark:hover:bg-surface-600 rounded-lg transition-colors text-sm group"
+                          >
+                            <ApperIcon name={getFileIcon(attachment.type)} className="w-4 h-4 text-primary" />
+                            <span className="text-surface-700 dark:text-surface-300 truncate max-w-[120px]">
+                              {attachment.name}
+                            </span>
+                            <ApperIcon name="Download" className="w-3 h-3 text-surface-500 group-hover:text-primary transition-colors" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Overdue Warning */}
+                  {isOverdue && (
+                    <div className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                  )}
+                </motion.div>
+              )
+            })
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </div>
+  )
+}
+
+export default MainFeature
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-3">
                         <div className="flex-1 min-w-0 mb-2 sm:mb-0">
                           <h4 className={`text-lg sm:text-xl font-semibold mb-1 ${
