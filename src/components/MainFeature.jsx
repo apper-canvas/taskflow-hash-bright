@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'react-toastify'
-import { format, isToday, isTomorrow, isPast } from 'date-fns'
+import { format, isToday, isTomorrow, isPast, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, isSameMonth } from 'date-fns'
 import ApperIcon from './ApperIcon'
 
 const MainFeature = () => {
   const [tasks, setTasks] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
+  const [selectedTask, setSelectedTask] = useState(null)
   const [filter, setFilter] = useState('all')
   const [sortBy, setSortBy] = useState('dueDate')
+  const [viewMode, setViewMode] = useState('list') // 'list', 'calendar'
+  const [currentMonth, setCurrentMonth] = useState(new Date())
   
   const [formData, setFormData] = useState({
     title: '',
@@ -153,6 +156,122 @@ const MainFeature = () => {
 
   const stats = getTaskStats()
 
+  // Calendar helper functions
+  const getTasksForDate = (date) => {
+    return filteredTasks.filter(task => 
+      task.dueDate && isSameDay(new Date(task.dueDate), date)
+    )
+  }
+
+  const getCalendarDays = () => {
+    const start = startOfWeek(startOfMonth(currentMonth))
+    const end = endOfWeek(endOfMonth(currentMonth))
+    return eachDayOfInterval({ start, end })
+  }
+
+  const handleTaskClick = (task) => {
+    setSelectedTask(task)
+    // Scroll to task in list view
+    setTimeout(() => {
+      const taskElement = document.getElementById(`task-${task.id}`)
+      if (taskElement) {
+        taskElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    }, 100)
+    toast.info(`Selected task: ${task.title}`)
+  }
+
+  const CalendarView = () => {
+    const calendarDays = getCalendarDays()
+    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+    return (
+      <div className="bg-white/80 dark:bg-surface-800/80 backdrop-blur-xl rounded-3xl p-6 shadow-task-card border border-white/20">
+        {/* Calendar Header */}
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold text-surface-900 dark:text-white">
+            {format(currentMonth, 'MMMM yyyy')}
+          </h3>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+              className="p-2 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-xl transition-colors"
+            >
+              <ApperIcon name="ChevronLeft" className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setCurrentMonth(new Date())}
+              className="px-3 py-1 text-sm bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+            >
+              Today
+            </button>
+            <button
+              onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+              className="p-2 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-xl transition-colors"
+            >
+              <ApperIcon name="ChevronRight" className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Days of Week Header */}
+        <div className="grid grid-cols-7 gap-1 mb-2">
+          {daysOfWeek.map(day => (
+            <div key={day} className="p-2 text-center text-sm font-medium text-surface-600 dark:text-surface-400">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar Grid */}
+        <div className="grid grid-cols-7 gap-1">
+          {calendarDays.map((date, index) => {
+            const dayTasks = getTasksForDate(date)
+            const isCurrentMonth = isSameMonth(date, currentMonth)
+            const isToday_ = isToday(date)
+
+            return (
+              <div
+                key={index}
+                className={`min-h-[80px] p-1 border border-surface-200 dark:border-surface-700 rounded-lg ${
+                  isCurrentMonth ? 'bg-white dark:bg-surface-800' : 'bg-surface-50 dark:bg-surface-900'
+                } ${isToday_ ? 'ring-2 ring-primary' : ''}`}
+              >
+                <div className={`text-sm font-medium mb-1 ${
+                  isCurrentMonth ? 'text-surface-900 dark:text-white' : 'text-surface-400'
+                } ${isToday_ ? 'text-primary font-bold' : ''}`}>
+                  {format(date, 'd')}
+                </div>
+                
+                <div className="space-y-1">
+                  {dayTasks.slice(0, 2).map(task => {
+                    const priorityConfig = getPriorityConfig(task.priority)
+                    return (
+                      <button
+                        key={task.id}
+                        onClick={() => handleTaskClick(task)}
+                        className={`w-full text-left p-1 rounded text-xs truncate transition-all duration-200 ${
+                          selectedTask?.id === task.id ? 'ring-2 ring-primary' : ''
+                        } ${priorityConfig.color} text-white hover:opacity-80`}
+                      >
+                        {task.title}
+                      </button>
+                    )
+                  })}
+                  {dayTasks.length > 2 && (
+                    <div className="text-xs text-surface-500 dark:text-surface-400">
+                      +{dayTasks.length - 2} more
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="w-full max-w-7xl mx-auto">
       {/* Header with Stats */}
@@ -221,6 +340,30 @@ const MainFeature = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.2 }}
       >
+        {/* View Mode Toggle */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                viewMode === 'list' ? 'bg-primary text-white shadow-soft' : 'bg-surface-100 dark:bg-surface-700 text-surface-600 dark:text-surface-300'
+              }`}
+            >
+              <ApperIcon name="List" className="w-4 h-4 inline mr-2" />
+              List View
+            </button>
+            <button
+              onClick={() => setViewMode('calendar')}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                viewMode === 'calendar' ? 'bg-primary text-white shadow-soft' : 'bg-surface-100 dark:bg-surface-700 text-surface-600 dark:text-surface-300'
+              }`}
+            >
+              <ApperIcon name="Calendar" className="w-4 h-4 inline mr-2" />
+              Calendar View
+            </button>
+          </div>
+        </div>
+
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0 sm:space-x-4">
           <div className="flex flex-wrap gap-2">
             {['all', 'pending', 'completed', 'overdue', 'urgent', 'high'].map((filterOption) => (
@@ -249,6 +392,18 @@ const MainFeature = () => {
           </select>
         </div>
       </motion.div>
+
+      {/* Calendar View */}
+      {viewMode === 'calendar' && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="mb-6"
+        >
+          <CalendarView />
+        </motion.div>
+      )}
 
       {/* Task Form Modal */}
       <AnimatePresence>
@@ -395,7 +550,7 @@ const MainFeature = () => {
         )}
       </AnimatePresence>
 
-      {/* Tasks List */}
+      {/* Tasks List - Always visible but below calendar when in calendar view */}
       <motion.div
         className="space-y-4"
         initial={{ opacity: 0, y: 20 }}
@@ -435,10 +590,13 @@ const MainFeature = () => {
 
               return (
                 <motion.div
+                  id={`task-${task.id}`}
                   key={task.id}
                   className={`group relative bg-white/80 dark:bg-surface-800/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-soft hover:shadow-task-card border border-white/20 transition-all duration-300 ${
                     task.status === 'completed' ? 'opacity-75' : ''
-                  } ${isOverdue ? 'border-red-300 dark:border-red-600' : ''}`}
+                  } ${isOverdue ? 'border-red-300 dark:border-red-600' : ''} ${
+                    selectedTask?.id === task.id ? 'ring-2 ring-primary shadow-lg' : ''
+                  }`}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
