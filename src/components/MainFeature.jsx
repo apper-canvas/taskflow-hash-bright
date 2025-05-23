@@ -76,9 +76,7 @@ const MainFeature = () => {
     { value: 'yearly', label: 'Yearly', icon: 'CalendarX2' }
   ]
 
-  const daysOfWeek = [
-    { value: 0, label: 'Sunday', short: 'Sun' },
-    { value: 1, label: 'Monday', short: 'Mon' },
+  const teamMembers = [
     { 
       id: 'tm-1', 
       name: 'Sarah Chen', 
@@ -146,6 +144,15 @@ const MainFeature = () => {
   ]
 
   const daysOfWeek = [
+    { value: 0, label: 'Sunday', short: 'Sun' },
+    { value: 1, label: 'Monday', short: 'Mon' },
+    { value: 2, label: 'Tuesday', short: 'Tue' },
+    { value: 3, label: 'Wednesday', short: 'Wed' },
+    { value: 4, label: 'Thursday', short: 'Thu' },
+    { value: 5, label: 'Friday', short: 'Fri' },
+    { value: 6, label: 'Saturday', short: 'Sat' }
+  ]
+
   const getFileIcon = (fileType) => {
     if (fileType.startsWith('image/')) return 'Image'
     if (fileType === 'application/pdf') return 'FileText'
@@ -179,14 +186,6 @@ const MainFeature = () => {
   useEffect(() => {
     localStorage.setItem('taskflow-tasks', JSON.stringify(tasks))
   }, [tasks])
-
-  const handleSubmit = (e) => {
-    { value: 2, label: 'Tuesday', short: 'Tue' },
-    { value: 3, label: 'Wednesday', short: 'Wed' },
-    { value: 4, label: 'Thursday', short: 'Thu' },
-    { value: 5, label: 'Friday', short: 'Fri' },
-    { value: 6, label: 'Saturday', short: 'Sat' }
-  ]
 
   // Generate recurring task instances
   const generateRecurringTasks = (template, startDate, endDate, maxOccurrences) => {
@@ -690,9 +689,8 @@ const MainFeature = () => {
 
   const getTaskStats = () => {
     const total = tasks.length
-  // Get recurring series for management
-  const recurringSeries = tasks.filter(t => t.isRecurringTemplate)
-  const totalRecurringSeries = recurringSeries.length
+    const recurringSeries = tasks.filter(t => t.isRecurringTemplate)
+    const totalRecurringSeries = recurringSeries.length
 
     const completed = tasks.filter(t => t.status === 'completed').length
     const overdue = tasks.filter(t => isPast(new Date(t.dueDate)) && t.status !== 'completed').length
@@ -702,6 +700,9 @@ const MainFeature = () => {
   }
 
   const stats = getTaskStats()
+  
+  // Get recurring series for management
+  const recurringSeries = tasks.filter(t => t.isRecurringTemplate)
 
   // Calendar helper functions
   const getTasksForDate = (date) => {
@@ -1097,6 +1098,15 @@ const MainFeature = () => {
                       +{dayTasks.length - 2} more
                     </div>
                   )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   // Recurring Task Management Component
   const RecurringTaskManager = () => {
     const [expandedSeries, setExpandedSeries] = useState(null)
@@ -1111,7 +1121,7 @@ const MainFeature = () => {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h3 className="text-xl font-bold text-surface-900 dark:text-white mb-2">
-              Recurring Task Series ({totalRecurringSeries})
+              Recurring Task Series ({recurringSeries.length})
             </h3>
             <p className="text-surface-600 dark:text-surface-300 text-sm">
               Manage your recurring task templates and generated instances
@@ -1267,7 +1277,6 @@ const MainFeature = () => {
                         </div>
                       </div>
                 </div>
-                      <div>
                         <h5 className="text-sm font-semibold text-surface-900 dark:text-white mb-3">
                           Generated Tasks (Last 5)
                         </h5>
@@ -1347,7 +1356,6 @@ const MainFeature = () => {
                   <ApperIcon name="X" className="w-5 h-5 text-surface-500" />
                 </button>
               </div>
-              </div>
               <form onSubmit={(e) => {
                 setFormData(prev => ({ ...prev, isRecurring: true }))
                 handleSubmit(e)
@@ -1371,7 +1379,6 @@ const MainFeature = () => {
                       required
                     />
                   </div>
-            )
                   <div>
                     <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
                       Description
@@ -1384,7 +1391,6 @@ const MainFeature = () => {
                       rows="3"
                     />
                   </div>
-          })}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
@@ -1402,7 +1408,6 @@ const MainFeature = () => {
                         ))}
                       </select>
                     </div>
-        </div>
                     <div>
                       <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
                         Category
@@ -1419,7 +1424,6 @@ const MainFeature = () => {
                         ))}
                       </select>
                     </div>
-      </div>
                     <div>
                       <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
                         Start Date *
@@ -1435,7 +1439,6 @@ const MainFeature = () => {
                   </div>
                 </div>
     )
-                {/* Recurrence Configuration */}
                 <div className="space-y-4">
                   <h4 className="text-lg font-semibold text-surface-900 dark:text-white border-b border-surface-200 dark:border-surface-700 pb-2">
                     Recurrence Pattern
@@ -1467,7 +1470,6 @@ const MainFeature = () => {
                         ))}
                       </div>
                     </div>
-  }
                     <div>
                       <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
                         Repeat Every
@@ -1524,7 +1526,6 @@ const MainFeature = () => {
                         ))}
                       </div>
                     </div>
-                  )}
   // Task Detail Modal Component
                   {/* End Conditions */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1542,7 +1543,6 @@ const MainFeature = () => {
                         className="w-full px-4 py-3 bg-surface-50 dark:bg-surface-700 border border-surface-300 dark:border-surface-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                     </div>
-  const TaskDetailModal = ({ task, onClose }) => {
                     <div>
                       <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
                         Max Occurrences (Optional)
@@ -1562,7 +1562,6 @@ const MainFeature = () => {
                     </div>
                   </div>
                 </div>
-    if (!task) return null
                 {/* Assignment */}
                 <div>
                   <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
@@ -1604,6 +1603,10 @@ const MainFeature = () => {
       </AnimatePresence>
     )
   }
+
+  // Task Detail Modal Component
+  const TaskDetailModal = ({ task, onClose }) => {
+    if (!task) return null
 
     const priorityConfig = getPriorityConfig(task.priority)
     const statusConfig = getStatusConfig(task.status)
@@ -2101,22 +2104,6 @@ const MainFeature = () => {
           ) : (
             sortedTasks.map((task, index) => {
               const priorityConfig = getPriorityConfig(task.priority)
-                <motion.div
-                  key={task.id}
-                  className={`group relative bg-white/80 dark:bg-surface-800/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-soft hover:shadow-task-card border border-white/20 transition-all duration-300 ${
-                    task.status === 'completed' ? 'opacity-75' : ''
-                  } ${isOverdue ? 'border-red-300 dark:border-red-600' : ''} ${
-                    selectedTask?.id === task.id ? 'ring-2 ring-primary shadow-lg' : ''
-                  } ${task.recurringParentId ? 'border-l-4 border-l-primary' : ''}`}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
-                  layout
-                >
-                  {/* Recurring Task Indicator */}
-                  {task.recurringParentId && (
-                    <div className="absolute top-2 left-2 flex items-center space-x-1 px-2 py-1 bg-primary/10 text-primary rounded-lg text-xs">
               const statusConfig = getStatusConfig(task.status)
               const categoryConfig = getCategoryConfig(task.category)
               const isOverdue = isPast(new Date(task.dueDate)) && task.status !== 'completed'
@@ -2130,16 +2117,20 @@ const MainFeature = () => {
                   } ${isOverdue ? 'border-red-300 dark:border-red-600' : ''} ${
                     selectedTask?.id === task.id ? 'ring-2 ring-primary shadow-lg' : ''
                   }`}
-                      <ApperIcon name="Repeat" className="w-3 h-3" />
-                      <span>Recurring</span>
-                    </div>
-                  )}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.3, delay: index * 0.05 }}
                   layout
                 >
+                  {/* Recurring Task Indicator */}
+                  {task.recurringParentId && (
+                    <div className="absolute top-2 left-2 flex items-center space-x-1 px-2 py-1 bg-primary/10 text-primary rounded-lg text-xs">
+                      <ApperIcon name="Repeat" className="w-3 h-3" />
+                      <span>Recurring</span>
+                    </div>
+                  )}
+
                   <div className="flex flex-col sm:flex-row sm:items-start space-y-4 sm:space-y-0 sm:space-x-4">
                     {/* Task Status Toggle */}
                     <button
@@ -2389,4 +2380,5 @@ const MainFeature = () => {
     </div>
   )
 }
+
 export default MainFeature
