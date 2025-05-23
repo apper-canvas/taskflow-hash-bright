@@ -1614,8 +1614,4 @@ const MainFeature = () => {
     </div>
   )
 }
-
-  )
-}
-
 export default MainFeature
