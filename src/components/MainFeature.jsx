@@ -870,7 +870,7 @@ const MainFeature = () => {
         onClick={(e) => e.target === e.currentTarget && onClose()}
       >
         <motion.div
-          className="bg-white dark:bg-surface-800 rounded-2xl sm:rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl border border-white/20"
+          className="bg-white dark:bg-surface-800 rounded-2xl sm:rounded-3xl w-full max-w-2xl max-h-[95vh] overflow-y-auto shadow-2xl border border-white/20 mx-4"
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -1092,7 +1092,7 @@ const MainFeature = () => {
             onClick={(e) => e.target === e.currentTarget && resetForm()}
           >
             <motion.div
-              className="bg-white dark:bg-surface-800 rounded-2xl sm:rounded-3xl p-6 sm:p-8 w-full max-w-lg shadow-2xl border border-white/20"
+              className="bg-white dark:bg-surface-800 rounded-2xl sm:rounded-3xl p-6 sm:p-8 w-full max-w-2xl max-h-[95vh] overflow-y-auto shadow-2xl border border-white/20 mx-4"
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
