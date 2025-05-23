@@ -851,10 +851,6 @@ const MainFeature = () => {
       </div>
     )
   }
-  // Task Detail Modal Component
-  const TaskDetailModal = ({ task, onClose }) => {
-    if (!task) return null
-
     const priorityConfig = getPriorityConfig(task.priority)
     const statusConfig = getStatusConfig(task.status)
     const categoryConfig = getCategoryConfig(task.category)
@@ -926,7 +922,11 @@ const MainFeature = () => {
       </motion.div>
     )
   }
-    <div className="w-full max-w-7xl mx-auto">
+
+  // Task Detail Modal Component
+  const TaskDetailModal = ({ task, onClose }) => {
+    if (!task) return null
+
       {/* Task Detail Modal */}
       <AnimatePresence>
         {selectedTask && (
@@ -1609,6 +1609,8 @@ const MainFeature = () => {
         </AnimatePresence>
       </motion.div>
     </div>
+
+  return (
   )
 }
 
