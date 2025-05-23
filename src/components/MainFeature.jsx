@@ -1274,7 +1274,6 @@ const MainFeature = () => {
                       </div>
                       
                       <div>
-
                         <h5 className="text-sm font-semibold text-surface-900 dark:text-white mb-3">
                           Generated Tasks (Last 5)
                         </h5>
@@ -1314,7 +1313,7 @@ const MainFeature = () => {
                         </div>
                       </div>
                     </div>
-                      </div>
+                  </div>
                   )}
                 </div>
               )
