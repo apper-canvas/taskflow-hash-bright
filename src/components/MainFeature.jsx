@@ -1315,7 +1315,6 @@ const MainFeature = () => {
                     </div>
                   </div>
                   )}
-                </div>
               )
             })}
           </div>
