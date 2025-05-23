@@ -23,7 +23,8 @@ const MainFeature = () => {
     status: 'pending',
     category: 'personal',
     attachments: [],
-    assignedTo: null
+    assignedTo: null,
+    comments: []
   })
 
   const priorities = [
@@ -132,6 +133,24 @@ const MainFeature = () => {
     return 'File'
   }
 
+  // Current user simulation - in a real app, this would come from authentication
+  const currentUser = {
+    if (fileType.startsWith('image/')) return 'Image'
+    if (fileType === 'application/pdf') return 'FileText'
+    if (fileType.includes('word') || fileType.includes('document')) return 'FileText'
+    if (fileType.includes('excel') || fileType.includes('sheet')) return 'FileSpreadsheet'
+    if (fileType.includes('powerpoint') || fileType.includes('presentation')) return 'Presentation'
+    if (fileType === 'text/plain') return 'FileText'
+    if (fileType.includes('zip')) return 'Archive'
+    return 'File'
+    id: 'current-user',
+    name: 'John Doe',
+    email: 'john.doe@company.com',
+    role: 'Project Manager',
+    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+    initials: 'JD'
+  }
+
   const getTeamMember = (memberId) => teamMembers.find(member => member.id === memberId)
 
   useEffect(() => {
@@ -157,7 +176,8 @@ const MainFeature = () => {
       ...formData,
       id: editingTask ? editingTask.id : Date.now().toString(),
       createdAt: editingTask ? editingTask.createdAt : new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      comments: editingTask ? editingTask.comments || [] : []
     }
 
     if (editingTask) {
@@ -180,7 +200,8 @@ const MainFeature = () => {
       status: 'pending',
       category: 'personal',
       attachments: [],
-      assignedTo: null
+      assignedTo: null,
+      comments: []
     })
     setShowForm(false)
     setEditingTask(null)
@@ -296,6 +317,103 @@ const MainFeature = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
+  // Comment management functions
+  const addComment = (taskId, commentText, parentId = null) => {
+    if (!commentText.trim()) {
+      toast.error('Comment cannot be empty!')
+      return
+    }
+
+    const newComment = {
+      id: Date.now().toString(),
+      text: commentText.trim(),
+      author: currentUser,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      parentId,
+      replies: []
+    }
+
+    setTasks(tasks.map(task => {
+      if (task.id === taskId) {
+        const updatedComments = [...(task.comments || [])]
+        if (parentId) {
+          // Add as reply to existing comment
+          const addReplyToComment = (comments) => {
+            return comments.map(comment => {
+              if (comment.id === parentId) {
+                return {
+                  ...comment,
+                  replies: [...(comment.replies || []), newComment]
+                }
+              } else if (comment.replies && comment.replies.length > 0) {
+                return {
+                  ...comment,
+                  replies: addReplyToComment(comment.replies)
+                }
+              }
+              return comment
+            })
+          }
+          updatedComments.splice(0, updatedComments.length, ...addReplyToComment(updatedComments))
+        } else {
+          // Add as new top-level comment
+          updatedComments.push(newComment)
+        }
+        return {
+          ...task,
+          comments: updatedComments,
+          updatedAt: new Date().toISOString()
+        }
+      }
+      return task
+    }))
+
+    toast.success(parentId ? 'Reply added successfully!' : 'Comment added successfully!')
+  }
+
+  const deleteComment = (taskId, commentId) => {
+    setTasks(tasks.map(task => {
+      if (task.id === taskId) {
+        const removeComment = (comments) => {
+          return comments.filter(comment => {
+            if (comment.id === commentId) {
+              return false
+            }
+            if (comment.replies && comment.replies.length > 0) {
+              comment.replies = removeComment(comment.replies)
+            }
+            return true
+          })
+        }
+        return {
+          ...task,
+          comments: removeComment(task.comments || []),
+          updatedAt: new Date().toISOString()
+        }
+      }
+      return task
+    }))
+    toast.success('Comment deleted successfully!')
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
+
+  // Get total comment count including replies
+  const getCommentCount = (comments) => {
+    if (!comments || comments.length === 0) return 0
+    return comments.reduce((total, comment) => {
+      return total + 1 + getCommentCount(comment.replies || [])
+    }, 0)
+  }
+
+  // Format relative time
+  const formatRelativeTime = (dateString) => {
+    const date = new Date(dateString)
+    const now = new Date()
   const filteredTasks = tasks.filter(task => {
     if (filter === 'all') return true
     if (filter === 'completed') return task.status === 'completed'
@@ -303,6 +421,17 @@ const MainFeature = () => {
     if (filter === 'overdue') return isPast(new Date(task.dueDate)) && task.status !== 'completed'
     return task.priority === filter || task.category === filter
   })
+
+    const diffInMinutes = Math.floor((now - date) / (1000 * 60))
+    const diffInHours = Math.floor(diffInMinutes / 60)
+    const diffInDays = Math.floor(diffInHours / 24)
+
+    if (diffInMinutes < 1) return 'Just now'
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`
+    if (diffInHours < 24) return `${diffInHours}h ago`
+    if (diffInDays < 7) return `${diffInDays}d ago`
+    return format(date, 'MMM dd, yyyy')
+  }
 
   const sortedTasks = filteredTasks.sort((a, b) => {
     if (sortBy === 'dueDate') return new Date(a.dueDate) - new Date(b.dueDate)
@@ -361,6 +490,172 @@ const MainFeature = () => {
     toast.info(`Selected task: ${task.title}`)
   }
 
+  // Comment Section Component
+  const CommentSection = ({ task }) => {
+    const [newComment, setNewComment] = useState('')
+    const [replyingTo, setReplyingTo] = useState(null)
+    const [replyText, setReplyText] = useState('')
+    const [editingComment, setEditingComment] = useState(null)
+    const [editText, setEditText] = useState('')
+
+    const handleAddComment = (e) => {
+      e.preventDefault()
+      addComment(task.id, newComment)
+      setNewComment('')
+    }
+
+    const handleAddReply = (e, parentId) => {
+      e.preventDefault()
+      addComment(task.id, replyText, parentId)
+      setReplyText('')
+      setReplyingTo(null)
+    }
+
+    const handleEditComment = (comment) => {
+      setEditingComment(comment.id)
+      setEditText(comment.text)
+    }
+
+    const saveEditComment = (e) => {
+      e.preventDefault()
+      if (!editText.trim()) {
+        toast.error('Comment cannot be empty!')
+        return
+      }
+
+      setTasks(tasks.map(t => {
+        if (t.id === task.id) {
+          const updateComment = (comments) => {
+            return comments.map(comment => {
+              if (comment.id === editingComment) {
+                return {
+                  ...comment,
+                  text: editText.trim(),
+                  updatedAt: new Date().toISOString()
+                }
+              }
+              if (comment.replies && comment.replies.length > 0) {
+                return {
+                  ...comment,
+                  replies: updateComment(comment.replies)
+                }
+              }
+              return comment
+            })
+          }
+          return {
+            ...t,
+            comments: updateComment(t.comments || []),
+            updatedAt: new Date().toISOString()
+          }
+        }
+        return t
+      }))
+
+      setEditingComment(null)
+      setEditText('')
+      toast.success('Comment updated successfully!')
+    }
+
+    const cancelEdit = () => {
+      setEditingComment(null)
+      setEditText('')
+    }
+
+    const renderComment = (comment, depth = 0) => {
+      const isCurrentUser = comment.author.id === currentUser.id
+      const maxDepth = 3
+
+      return (
+        <div key={comment.id} className={`${depth > 0 ? `ml-${Math.min(depth * 4, 12)} border-l-2 border-surface-200 dark:border-surface-700 pl-4` : ''}`}>
+          <div className={`p-4 rounded-xl mb-3 ${
+            isCurrentUser 
+              ? 'bg-primary/5 border border-primary/20' 
+              : 'bg-surface-50 dark:bg-surface-700/50'
+          }`}>
+            <div className="flex items-start space-x-3">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center flex-shrink-0">
+                {comment.author.avatar ? (
+                  <img 
+                    src={comment.author.avatar} 
+                    alt={comment.author.name}
+                    className="w-8 h-8 rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="text-xs font-medium text-primary">
+                    {comment.author.initials}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center space-x-2 mb-1">
+                  <span className={`text-sm font-medium ${isCurrentUser ? 'text-primary' : 'text-surface-900 dark:text-white'}`}>
+                    {comment.author.name}
+                    {isCurrentUser && <span className="text-xs text-primary ml-1">(You)</span>}
+                  </span>
+                  <span className="text-xs text-surface-500 dark:text-surface-400">
+                    {formatRelativeTime(comment.createdAt)}
+                    {comment.updatedAt !== comment.createdAt && <span className="ml-1">(edited)</span>}
+                  </span>
+                </div>
+
+                {editingComment === comment.id ? (
+                  <form onSubmit={saveEditComment} className="space-y-3">
+                    <textarea
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      className="w-full px-3 py-2 bg-white dark:bg-surface-800 border border-surface-300 dark:border-surface-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      rows="3"
+                      placeholder="Edit your comment..."
+                    />
+                    <div className="flex space-x-2">
+                      <button
+                        type="submit"
+                        className="px-3 py-1 bg-primary text-white text-xs rounded-lg hover:bg-primary-dark transition-colors"
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelEdit}
+                        className="px-3 py-1 bg-surface-200 dark:bg-surface-600 text-surface-700 dark:text-surface-300 text-xs rounded-lg hover:bg-surface-300 dark:hover:bg-surface-500 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <>
+                    <p className="text-sm text-surface-700 dark:text-surface-300 mb-2">
+                      {comment.text}
+                    </p>
+                    <div className="flex items-center space-x-3">
+                      {depth < maxDepth && (
+                        <button
+                          onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+                          className="text-xs text-primary hover:text-primary-dark transition-colors"
+                        >
+                          Reply
+                        </button>
+                      )}
+                      {isCurrentUser && (
+                        <>
+                          <button
+                            onClick={() => handleEditComment(comment)}
+                            className="text-xs text-surface-500 hover:text-primary transition-colors"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm('Are you sure you want to delete this comment?')) {
+                                deleteComment(task.id, comment.id)
+                              }
+                            }}
+                            className="text-xs text-red-500 hover:text-red-700 transition-colors"
+                          >
+                            Delete
   const CalendarView = () => {
     const calendarDays = getCalendarDays()
     const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -453,6 +748,47 @@ const MainFeature = () => {
   }
 
   return (
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {replyingTo === comment.id && (
+              <form onSubmit={(e) => handleAddReply(e, comment.id)} className="mt-3 ml-11">
+                <textarea
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  className="w-full px-3 py-2 bg-white dark:bg-surface-800 border border-surface-300 dark:border-surface-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  rows="2"
+                  placeholder="Write a reply..."
+                />
+                <div className="flex space-x-2 mt-2">
+                  <button
+                    type="submit"
+                    className="px-3 py-1 bg-primary text-white text-xs rounded-lg hover:bg-primary-dark transition-colors"
+                  >
+                    Reply
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReplyingTo(null)
+                      setReplyText('')
+                    }}
+                    className="px-3 py-1 bg-surface-200 dark:bg-surface-600 text-surface-700 dark:text-surface-300 text-xs rounded-lg hover:bg-surface-300 dark:hover:bg-surface-500 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+
+          {/* Render replies */}
     <div className="w-full max-w-7xl mx-auto">
       {/* Header with Stats */}
       <motion.div 
@@ -625,6 +961,84 @@ const MainFeature = () => {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+          {comment.replies && comment.replies.length > 0 && (
+            <div className="space-y-3">
+              {comment.replies.map(reply => renderComment(reply, depth + 1))}
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    return (
+      <div className="mt-6 pt-6 border-t border-surface-200 dark:border-surface-700">
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="text-lg font-semibold text-surface-900 dark:text-white">
+            Comments ({getCommentCount(task.comments || [])})
+          </h4>
+        </div>
+
+        {/* Add new comment form */}
+        <form onSubmit={handleAddComment} className="mb-6">
+          <div className="flex space-x-3">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center flex-shrink-0">
+              {currentUser.avatar ? (
+                <img 
+                  src={currentUser.avatar} 
+                  alt={currentUser.name}
+                  className="w-8 h-8 rounded-full object-cover"
+                />
+              ) : (
+                <span className="text-xs font-medium text-primary">
+                  {currentUser.initials}
+                </span>
+              )}
+            </div>
+            <div className="flex-1">
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                className="w-full px-4 py-3 bg-surface-50 dark:bg-surface-700 border border-surface-300 dark:border-surface-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                rows="3"
+                placeholder="Add a comment..."
+              />
+              <div className="flex justify-end mt-2">
+                <button
+                  type="submit"
+                  disabled={!newComment.trim()}
+                  className="px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Add Comment
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+
+        {/* Comments list */}
+        <div className="space-y-4">
+          {task.comments && task.comments.length > 0 ? (
+            task.comments.map(comment => renderComment(comment))
+          ) : (
+            <div className="text-center py-8">
+              <div className="w-16 h-16 bg-gradient-to-br from-surface-100 to-surface-200 dark:from-surface-700 dark:to-surface-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <ApperIcon name="MessageCircle" className="w-8 h-8 text-surface-400" />
+              </div>
+              <h3 className="text-lg font-medium text-surface-900 dark:text-white mb-2">
+                No comments yet
+              </h3>
+              <p className="text-sm text-surface-600 dark:text-surface-400">
+                Be the first to add a comment to this task.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Task Detail Modal Component
+  const TaskDetailModal = ({ task, onClose }) => {
                 <div>
                   <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
                     Task Title *
@@ -826,6 +1240,75 @@ const MainFeature = () => {
         )}
       </AnimatePresence>
 
+    if (!task) return null
+
+    const priorityConfig = getPriorityConfig(task.priority)
+    const statusConfig = getStatusConfig(task.status)
+    const categoryConfig = getCategoryConfig(task.category)
+    const isOverdue = isPast(new Date(task.dueDate)) && task.status !== 'completed'
+
+    return (
+      <motion.div
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={(e) => e.target === e.currentTarget && onClose()}
+      >
+        <motion.div
+          className="bg-white dark:bg-surface-800 rounded-2xl sm:rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl border border-white/20"
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9, y: 20 }}
+          transition={{ duration: 0.3 }}
+        >
+          {/* Header */}
+          <div className="sticky top-0 bg-white dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700 p-6 rounded-t-2xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <h3 className="text-xl sm:text-2xl font-bold text-surface-900 dark:text-white">
+                  {task.title}
+                </h3>
+                {getCommentCount(task.comments || []) > 0 && (
+                  <div className="flex items-center space-x-1 px-2 py-1 bg-primary/10 text-primary rounded-lg text-sm">
+                    <ApperIcon name="MessageCircle" className="w-4 h-4" />
+                    <span>{getCommentCount(task.comments || [])}</span>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-xl transition-colors"
+              >
+                <ApperIcon name="X" className="w-5 h-5 text-surface-500" />
+              </button>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="p-6">
+            {/* Task details content would go here */}
+            <div className="mb-6">
+              <p className="text-surface-600 dark:text-surface-300 mb-4">
+                {task.description || 'No description provided.'}
+              </p>
+              
+              {/* Task meta information */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                <div className={`flex items-center space-x-1 px-3 py-1 ${priorityConfig.color} text-white rounded-lg text-sm`}>
+                  <ApperIcon name={priorityConfig.icon} className="w-4 h-4" />
+                  <span>{priorityConfig.label}</span>
+                </div>
+                <div className={`flex items-center space-x-1 px-3 py-1 ${statusConfig.color} text-white rounded-lg text-sm`}>
+                  <ApperIcon name={statusConfig.icon} className="w-4 h-4" />
+                  <span>{statusConfig.label}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Comment Section */}
+            <CommentSection task={task} />
+          </div>
       {/* Tasks List - Always visible but below calendar when in calendar view */}
       <motion.div
         className="space-y-4"
@@ -943,10 +1426,29 @@ const MainFeature = () => {
                           {/* Task Actions */}
                           <div className="flex items-center space-x-2 flex-shrink-0">
                             <button
+        </motion.div>
+      </motion.div>
+    )
+  }
+
+  return (
+    <div className="w-full max-w-7xl mx-auto">
+      {/* Task Detail Modal */}
+      <AnimatePresence>
+        {selectedTask && (
+          <TaskDetailModal 
+            task={selectedTask} 
+            onClose={() => setSelectedTask(null)} 
+          />
+        )}
+      </AnimatePresence>
+
+                            <button
+                              onClick={() => setSelectedTask(task)}
+                              className="p-2 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-lg transition-colors"
                               onClick={() => handleEdit(task)}
                               className="p-2 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-lg transition-colors"
                             >
-                              <ApperIcon name="Edit2" className="w-4 h-4 text-surface-500 hover:text-primary" />
                             </button>
                             <button
                               onClick={() => handleDelete(task.id)}
@@ -955,6 +1457,16 @@ const MainFeature = () => {
                               <ApperIcon name="Trash2" className="w-4 h-4 text-surface-500 hover:text-red-500" />
                             </button>
                           </div>
+                              <ApperIcon name="Eye" className="w-4 h-4 text-surface-500 hover:text-primary" />
+                            </button>
+                            <button
+                              onClick={() => handleEdit(task)}
+                              className="p-2 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-lg transition-colors"
+                            >
+                              <ApperIcon name="Edit2" className="w-4 h-4 text-surface-500 hover:text-primary" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(task.id)}
                         </div>
 
                         {/* Task Meta */}
@@ -988,6 +1500,15 @@ const MainFeature = () => {
                             }`}>
                               <ApperIcon name="Calendar" className="w-3 h-3 sm:w-4 sm:h-4" />
                               <span>{formatDueDate(task.dueDate)}</span>
+                            </div>
+                          )}
+
+                          {/* Comment Count Badge */}
+                          {getCommentCount(task.comments || []) > 0 && (
+                            <div className="flex items-center space-x-1 px-2 sm:px-3 py-1 bg-primary/10 text-primary rounded-lg text-xs sm:text-sm font-medium">
+                              <ApperIcon name="MessageCircle" className="w-3 h-3 sm:w-4 sm:h-4" />
+                              <span>{getCommentCount(task.comments || [])}</span>
+                              <span className="hidden sm:inline">comments</span>
                             </div>
                           )}
                         </div>
