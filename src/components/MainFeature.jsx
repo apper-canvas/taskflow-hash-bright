@@ -926,10 +926,6 @@ const MainFeature = () => {
       </motion.div>
     )
   }
-  }
-  return (
-
-  return (
     <div className="w-full max-w-7xl mx-auto">
       {/* Task Detail Modal */}
       <AnimatePresence>
