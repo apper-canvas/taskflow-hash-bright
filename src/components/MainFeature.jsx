@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { toast } from 'react-toastify'
-import { format, isToday, isTomorrow, isPast, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, isSameMonth } from 'date-fns'
+import { format, isToday, isTomorrow, isPast, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, isSameMonth, addDays, addWeeks, addMonths as addMonthsUtil, addYears, isAfter, isBefore, parseISO, startOfDay } from 'date-fns'
 import ApperIcon from './ApperIcon'
 
 const MainFeature = () => {
@@ -14,6 +14,7 @@ const MainFeature = () => {
   const [sortBy, setSortBy] = useState('dueDate')
   const [viewMode, setViewMode] = useState('list') // 'list', 'calendar'
   const [currentMonth, setCurrentMonth] = useState(new Date())
+  const [showRecurringForm, setShowRecurringForm] = useState(false)
   
   const [formData, setFormData] = useState({
     title: '',
@@ -24,7 +25,16 @@ const MainFeature = () => {
     category: 'personal',
     attachments: [],
     assignedTo: null,
-    comments: []
+    comments: [],
+    isRecurring: false,
+    recurringPattern: {
+      type: 'daily', // 'daily', 'weekly', 'monthly', 'yearly'
+      interval: 1,
+      daysOfWeek: [], // for weekly pattern
+      endDate: null,
+      maxOccurrences: null,
+      generatedTaskIds: []
+    }
   })
 
   const priorities = [
@@ -56,6 +66,19 @@ const MainFeature = () => {
   ]
 
   const teamMembers = [
+    // ... existing team members ...
+  ]
+
+  const recurringPatterns = [
+    { value: 'daily', label: 'Daily', icon: 'Calendar' },
+    { value: 'weekly', label: 'Weekly', icon: 'CalendarDays' },
+    { value: 'monthly', label: 'Monthly', icon: 'CalendarRange' },
+    { value: 'yearly', label: 'Yearly', icon: 'CalendarX2' }
+  ]
+
+  const daysOfWeek = [
+    { value: 0, label: 'Sunday', short: 'Sun' },
+    { value: 1, label: 'Monday', short: 'Mon' },
     { 
       id: 'tm-1', 
       name: 'Sarah Chen', 
@@ -122,6 +145,7 @@ const MainFeature = () => {
     }
   ]
 
+  const daysOfWeek = [
   const getFileIcon = (fileType) => {
     if (fileType.startsWith('image/')) return 'Image'
     if (fileType === 'application/pdf') return 'FileText'
@@ -157,11 +181,215 @@ const MainFeature = () => {
   }, [tasks])
 
   const handleSubmit = (e) => {
+    { value: 2, label: 'Tuesday', short: 'Tue' },
+    { value: 3, label: 'Wednesday', short: 'Wed' },
+    { value: 4, label: 'Thursday', short: 'Thu' },
+    { value: 5, label: 'Friday', short: 'Fri' },
+    { value: 6, label: 'Saturday', short: 'Sat' }
+  ]
+
+  // Generate recurring task instances
+  const generateRecurringTasks = (template, startDate, endDate, maxOccurrences) => {
+    const generatedTasks = []
+    const { recurringPattern } = template
+    let currentDate = new Date(startDate)
+    let occurrenceCount = 0
+    const endDateObj = endDate ? new Date(endDate) : null
+    const maxOccur = maxOccurrences || 50 // Default limit to prevent infinite generation
+
+    while (occurrenceCount < maxOccur) {
+      // Check if we've exceeded the end date
+      if (endDateObj && isAfter(currentDate, endDateObj)) break
+
+      // Generate a new task instance
+      const newTask = {
+        ...template,
+        id: `${template.id}-${currentDate.getTime()}`,
+        dueDate: format(currentDate, 'yyyy-MM-dd'),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        isRecurring: false, // Individual instances are not recurring
+        recurringParentId: template.id,
+        title: `${template.title} (${format(currentDate, 'MMM dd, yyyy')})`,
+        comments: []
+      }
+
+      generatedTasks.push(newTask)
+      occurrenceCount++
+
+      // Calculate next occurrence based on pattern
+      switch (recurringPattern.type) {
+        case 'daily':
+          currentDate = addDays(currentDate, recurringPattern.interval)
+          break
+        case 'weekly':
+          if (recurringPattern.daysOfWeek && recurringPattern.daysOfWeek.length > 0) {
+            // Find next day of week
+            let nextDate = addDays(currentDate, 1)
+            let foundNext = false
+            let attempts = 0
+            
+            while (!foundNext && attempts < 14) { // Prevent infinite loop
+              if (recurringPattern.daysOfWeek.includes(nextDate.getDay())) {
+                currentDate = nextDate
+                foundNext = true
+              } else {
+                nextDate = addDays(nextDate, 1)
+              }
+              attempts++
+            }
+            
+            if (!foundNext) {
+              // Fallback to weekly interval
+              currentDate = addWeeks(currentDate, recurringPattern.interval)
+            }
+          } else {
+            currentDate = addWeeks(currentDate, recurringPattern.interval)
+          }
+          break
+        case 'monthly':
+          currentDate = addMonthsUtil(currentDate, recurringPattern.interval)
+          break
+        case 'yearly':
+          currentDate = addYears(currentDate, recurringPattern.interval)
+          break
+        default:
+          currentDate = addDays(currentDate, 1)
+      }
+    }
+
+    return generatedTasks
+  }
+
+  const handleRecurringSubmit = (e) => {
     e.preventDefault()
     
     if (!formData.title.trim()) {
       toast.error('Task title is required!')
       return
+    }
+
+    if (!formData.dueDate) {
+      toast.error('Start date is required for recurring tasks!')
+      return
+    }
+
+    if (formData.recurringPattern.type === 'weekly' && formData.recurringPattern.daysOfWeek.length === 0) {
+      toast.error('Please select at least one day of the week for weekly recurring tasks!')
+      return
+    }
+
+    // Create the recurring template
+    const recurringTemplate = {
+      ...formData,
+      id: editingTask ? editingTask.id : `recurring-${Date.now().toString()}`,
+      createdAt: editingTask ? editingTask.createdAt : new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      isRecurringTemplate: true,
+      isRecurring: true
+    }
+
+    // Generate task instances
+    const startDate = new Date(formData.dueDate)
+    const endDate = formData.recurringPattern.endDate ? new Date(formData.recurringPattern.endDate) : null
+    const maxOccurrences = formData.recurringPattern.maxOccurrences || 10
+
+    const generatedTasks = generateRecurringTasks(recurringTemplate, startDate, endDate, maxOccurrences)
+    
+    // Update the template with generated task IDs
+    recurringTemplate.recurringPattern.generatedTaskIds = generatedTasks.map(t => t.id)
+
+    if (editingTask) {
+      // Update existing recurring template
+      setTasks(prevTasks => {
+        // Remove old generated tasks
+        const filteredTasks = prevTasks.filter(t => !editingTask.recurringPattern.generatedTaskIds.includes(t.id))
+        // Add updated template and new generated tasks
+        return [...filteredTasks.filter(t => t.id !== editingTask.id), recurringTemplate, ...generatedTasks]
+      })
+      toast.success(`Recurring task series updated! Generated ${generatedTasks.length} task instances.`)
+    } else {
+      // Add new recurring template and generated tasks
+      setTasks(prevTasks => [...prevTasks, recurringTemplate, ...generatedTasks])
+      toast.success(`Recurring task series created! Generated ${generatedTasks.length} task instances.`)
+    }
+
+    resetForm()
+  }
+
+  const deleteRecurringSeries = (templateId) => {
+    const template = tasks.find(t => t.id === templateId)
+    if (!template || !template.isRecurringTemplate) return
+
+    if (window.confirm('Are you sure you want to delete this entire recurring series? This will remove all generated task instances.')) {
+      setTasks(prevTasks => {
+        const generatedIds = template.recurringPattern.generatedTaskIds || []
+        return prevTasks.filter(t => t.id !== templateId && !generatedIds.includes(t.id))
+      })
+      toast.success('Recurring task series deleted successfully!')
+    }
+  }
+
+  const regenerateRecurringTasks = (templateId) => {
+    const template = tasks.find(t => t.id === templateId)
+    if (!template || !template.isRecurringTemplate) return
+
+    // Remove existing generated tasks
+    const generatedIds = template.recurringPattern.generatedTaskIds || []
+    
+    // Generate new tasks
+    const startDate = new Date(template.dueDate)
+    const endDate = template.recurringPattern.endDate ? new Date(template.recurringPattern.endDate) : null
+    const maxOccurrences = template.recurringPattern.maxOccurrences || 10
+
+    const newGeneratedTasks = generateRecurringTasks(template, startDate, endDate, maxOccurrences)
+    
+    // Update template with new generated task IDs
+    const updatedTemplate = {
+      ...template,
+      recurringPattern: {
+        ...template.recurringPattern,
+        generatedTaskIds: newGeneratedTasks.map(t => t.id)
+      },
+      updatedAt: new Date().toISOString()
+    }
+
+    setTasks(prevTasks => {
+      // Remove old generated tasks and update template
+      const filteredTasks = prevTasks.filter(t => !generatedIds.includes(t.id) && t.id !== templateId)
+      return [...filteredTasks, updatedTemplate, ...newGeneratedTasks]
+    })
+
+    toast.success(`Recurring series regenerated! Created ${newGeneratedTasks.length} new task instances.`)
+  }
+
+  const getRecurringSeriesInfo = (templateId) => {
+    const template = tasks.find(t => t.id === templateId)
+    if (!template || !template.isRecurringTemplate) return null
+
+    const generatedIds = template.recurringPattern.generatedTaskIds || []
+    const generatedTasks = tasks.filter(t => generatedIds.includes(t.id))
+    const completedCount = generatedTasks.filter(t => t.status === 'completed').length
+
+    return {
+      template,
+      totalGenerated: generatedTasks.length,
+      completed: completedCount,
+      remaining: generatedTasks.length - completedCount
+    }
+  }
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    
+    if (!formData.title.trim()) {
+      toast.error('Task title is required!')
+      return
+    }
+
+    // Handle recurring task submission
+    if (formData.isRecurring) {
+      return handleRecurringSubmit(e)
     }
 
     const taskData = {
@@ -193,7 +421,16 @@ const MainFeature = () => {
       category: 'personal',
       attachments: [],
       assignedTo: null,
-      comments: []
+      comments: [],
+      isRecurring: false,
+      recurringPattern: {
+        type: 'daily',
+        interval: 1,
+        daysOfWeek: [],
+        endDate: null,
+        maxOccurrences: null,
+        generatedTaskIds: []
+      }
     })
     setShowForm(false)
     setEditingTask(null)
@@ -421,6 +658,8 @@ const MainFeature = () => {
   }
 
   const filteredTasks = tasks.filter(task => {
+    // Hide recurring templates from normal task list
+    if (task.isRecurringTemplate) return false
     if (filter === 'all') return true
     if (filter === 'completed') return task.status === 'completed'
     if (filter === 'pending') return task.status !== 'completed'
@@ -451,6 +690,10 @@ const MainFeature = () => {
 
   const getTaskStats = () => {
     const total = tasks.length
+  // Get recurring series for management
+  const recurringSeries = tasks.filter(t => t.isRecurringTemplate)
+  const totalRecurringSeries = recurringSeries.length
+
     const completed = tasks.filter(t => t.status === 'completed').length
     const overdue = tasks.filter(t => isPast(new Date(t.dueDate)) && t.status !== 'completed').length
     const inProgress = tasks.filter(t => t.status === 'in-progress').length
@@ -854,18 +1097,513 @@ const MainFeature = () => {
                       +{dayTasks.length - 2} more
                     </div>
                   )}
-                </div>
-              </div>
-            )
-          })}
+  // Recurring Task Management Component
+  const RecurringTaskManager = () => {
+    const [expandedSeries, setExpandedSeries] = useState(null)
+
+    return (
+      <motion.div
+        className="bg-white/80 dark:bg-surface-800/80 backdrop-blur-xl rounded-3xl p-6 shadow-task-card border border-white/20 mb-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-xl font-bold text-surface-900 dark:text-white mb-2">
+              Recurring Task Series ({totalRecurringSeries})
+            </h3>
+            <p className="text-surface-600 dark:text-surface-300 text-sm">
+              Manage your recurring task templates and generated instances
+            </p>
+          </div>
+          <button
+            onClick={() => setShowRecurringForm(true)}
+            className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-primary to-secondary text-white font-semibold rounded-xl shadow-soft hover:shadow-card transition-all duration-300"
+          >
+            <ApperIcon name="Repeat" className="w-4 h-4" />
+            <span>Create Recurring Task</span>
+          </button>
         </div>
-      </div>
+
+        {recurringSeries.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <ApperIcon name="Repeat" className="w-8 h-8 text-primary" />
+            </div>
+            <h4 className="text-lg font-medium text-surface-900 dark:text-white mb-2">
+              No recurring tasks yet
+            </h4>
+            <p className="text-sm text-surface-600 dark:text-surface-400 mb-4">
+              Create recurring tasks to automate your routine work
+            </p>
+            <button
+              onClick={() => setShowRecurringForm(true)}
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+            >
+              Create Your First Recurring Task
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {recurringSeries.map(series => {
+              const seriesInfo = getRecurringSeriesInfo(series.id)
+              const isExpanded = expandedSeries === series.id
+              const priorityConfig = getPriorityConfig(series.priority)
+              const categoryConfig = getCategoryConfig(series.category)
+
+              return (
+                <div
+                  key={series.id}
+                  className="border border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden"
+                >
+                  <div className="p-4 bg-gradient-to-r from-surface-50 to-primary/5 dark:from-surface-700 dark:to-surface-800">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <h4 className="text-lg font-semibold text-surface-900 dark:text-white">
+                            {series.title}
+                          </h4>
+                          <div className="flex items-center space-x-1 px-2 py-1 bg-primary/10 text-primary rounded-lg text-xs">
+                            <ApperIcon name="Repeat" className="w-3 h-3" />
+                            <span>{series.recurringPattern.type}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <div className={`flex items-center space-x-1 px-2 py-1 ${priorityConfig.color} text-white rounded-lg text-xs`}>
+                            <ApperIcon name={priorityConfig.icon} className="w-3 h-3" />
+                            <span>{priorityConfig.label}</span>
+                          </div>
+                          <div className={`flex items-center space-x-1 px-2 py-1 ${categoryConfig.color} text-white rounded-lg text-xs`}>
+                            <ApperIcon name="Tag" className="w-3 h-3" />
+                            <span>{categoryConfig.label}</span>
+                          </div>
+                        </div>
+
+                        {seriesInfo && (
+                          <div className="flex items-center space-x-4 text-sm text-surface-600 dark:text-surface-400">
+                            <span>{seriesInfo.totalGenerated} tasks generated</span>
+                            <span>{seriesInfo.completed} completed</span>
+                            <span>{seriesInfo.remaining} remaining</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => setExpandedSeries(isExpanded ? null : series.id)}
+                          className="p-2 hover:bg-surface-100 dark:hover:bg-surface-600 rounded-lg transition-colors"
+                        >
+                          <ApperIcon 
+                            name={isExpanded ? "ChevronUp" : "ChevronDown"} 
+                            className="w-4 h-4 text-surface-500" 
+                          />
+                        </button>
+                        <button
+                          onClick={() => handleEdit(series)}
+                          className="p-2 hover:bg-surface-100 dark:hover:bg-surface-600 rounded-lg transition-colors"
+                        >
+                          <ApperIcon name="Edit2" className="w-4 h-4 text-surface-500 hover:text-primary" />
+                        </button>
+                        <button
+                          onClick={() => regenerateRecurringTasks(series.id)}
+                          className="p-2 hover:bg-surface-100 dark:hover:bg-surface-600 rounded-lg transition-colors"
+                          title="Regenerate task instances"
+                        >
+                          <ApperIcon name="RefreshCw" className="w-4 h-4 text-surface-500 hover:text-primary" />
+                        </button>
+                        <button
+                          onClick={() => deleteRecurringSeries(series.id)}
+                          className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                        >
+                          <ApperIcon name="Trash2" className="w-4 h-4 text-surface-500 hover:text-red-500" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {isExpanded && seriesInfo && (
+                    <div className="p-4 border-t border-surface-200 dark:border-surface-700">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <h5 className="text-sm font-semibold text-surface-900 dark:text-white mb-2">
+                            Recurrence Details
+                          </h5>
+                          <div className="space-y-1 text-sm text-surface-600 dark:text-surface-400">
+                            <p>Pattern: {series.recurringPattern.type} every {series.recurringPattern.interval} {series.recurringPattern.type}(s)</p>
+                            {series.recurringPattern.daysOfWeek && series.recurringPattern.daysOfWeek.length > 0 && (
+                              <p>Days: {series.recurringPattern.daysOfWeek.map(day => daysOfWeek.find(d => d.value === day)?.short).join(', ')}</p>
+                            )}
+                            {series.recurringPattern.endDate && (
+                              <p>End Date: {format(new Date(series.recurringPattern.endDate), 'MMM dd, yyyy')}</p>
+                            )}
+                            {series.recurringPattern.maxOccurrences && (
+                              <p>Max Occurrences: {series.recurringPattern.maxOccurrences}</p>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <h5 className="text-sm font-semibold text-surface-900 dark:text-white mb-2">
+                            Progress Overview
+                          </h5>
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-surface-600 dark:text-surface-400">Completion Rate</span>
+                              <span className="font-medium text-surface-900 dark:text-white">
+                                {seriesInfo.totalGenerated > 0 ? Math.round((seriesInfo.completed / seriesInfo.totalGenerated) * 100) : 0}%
+                              </span>
+                            </div>
+                            <div className="w-full bg-surface-200 dark:bg-surface-700 rounded-full h-2">
+                              <div 
+                                className="bg-accent rounded-full h-2 transition-all duration-300"
+                                style={{ 
+                                  width: `${seriesInfo.totalGenerated > 0 ? (seriesInfo.completed / seriesInfo.totalGenerated) * 100 : 0}%` 
+                                }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                </div>
+                      <div>
+                        <h5 className="text-sm font-semibold text-surface-900 dark:text-white mb-3">
+                          Generated Tasks (Last 5)
+                        </h5>
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                          {tasks
+                            .filter(t => series.recurringPattern.generatedTaskIds.includes(t.id))
+                            .slice(-5)
+                            .map(task => {
+                              const taskPriorityConfig = getPriorityConfig(task.priority)
+                              const taskStatusConfig = getStatusConfig(task.status)
+                              
+                              return (
+                                <div
+                                  key={task.id}
+                                  className="flex items-center justify-between p-2 bg-surface-50 dark:bg-surface-700 rounded-lg"
+                                >
+                                  <div className="flex items-center space-x-2 flex-1 min-w-0">
+                                    <div className={`w-3 h-3 rounded-full ${taskStatusConfig.color}`}></div>
+                                    <span className="text-sm text-surface-900 dark:text-white truncate">
+                                      {task.title}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-xs text-surface-500 dark:text-surface-400">
+                                      {task.dueDate && format(new Date(task.dueDate), 'MMM dd')}
+                                    </span>
+                                    <button
+                                      onClick={() => setSelectedTask(task)}
+                                      className="p-1 hover:bg-surface-200 dark:hover:bg-surface-600 rounded transition-colors"
+                                    >
+                                      <ApperIcon name="Eye" className="w-3 h-3 text-surface-500" />
+                                    </button>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </motion.div>
     )
   }
 
+  // Recurring Task Form Component
+  const RecurringTaskForm = () => {
+    return (
+      <AnimatePresence>
+        {showRecurringForm && (
+          <motion.div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={(e) => e.target === e.currentTarget && setShowRecurringForm(false)}
+          >
+            <motion.div
+              className="bg-white dark:bg-surface-800 rounded-2xl sm:rounded-3xl p-6 sm:p-8 w-full max-w-3xl max-h-[95vh] overflow-y-auto shadow-2xl border border-white/20 mx-4"
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl sm:text-2xl font-bold text-surface-900 dark:text-white">
+                  Create Recurring Task Series
+                </h3>
+                <button
+                  onClick={() => setShowRecurringForm(false)}
+                  className="p-2 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-xl transition-colors"
+                >
+                  <ApperIcon name="X" className="w-5 h-5 text-surface-500" />
+                </button>
+              </div>
+              </div>
+              <form onSubmit={(e) => {
+                setFormData(prev => ({ ...prev, isRecurring: true }))
+                handleSubmit(e)
+              }} className="space-y-6">
+                {/* Basic Task Information */}
+                <div className="space-y-4">
+                  <h4 className="text-lg font-semibold text-surface-900 dark:text-white border-b border-surface-200 dark:border-surface-700 pb-2">
+                    Basic Information
+                  </h4>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
+                      Task Title *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      className="w-full px-4 py-3 bg-surface-50 dark:bg-surface-700 border border-surface-300 dark:border-surface-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="Enter recurring task title..."
+                      required
+                    />
+                  </div>
+            )
+                  <div>
+                    <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
+                      Description
+                    </label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      className="w-full px-4 py-3 bg-surface-50 dark:bg-surface-700 border border-surface-300 dark:border-surface-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="Enter task description..."
+                      rows="3"
+                    />
+                  </div>
+          })}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
+                        Priority
+                      </label>
+                      <select
+                        value={formData.priority}
+                        onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                        className="w-full px-4 py-3 bg-surface-50 dark:bg-surface-700 border border-surface-300 dark:border-surface-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
+                      >
+                        {priorities.map(priority => (
+                          <option key={priority.value} value={priority.value}>
+                            {priority.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+        </div>
+                    <div>
+                      <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
+                        Category
+                      </label>
+                      <select
+                        value={formData.category}
+                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                        className="w-full px-4 py-3 bg-surface-50 dark:bg-surface-700 border border-surface-300 dark:border-surface-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
+                      >
+                        {categories.map(category => (
+                          <option key={category.value} value={category.value}>
+                            {category.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+      </div>
+                    <div>
+                      <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
+                        Start Date *
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.dueDate}
+                        onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                        className="w-full px-4 py-3 bg-surface-50 dark:bg-surface-700 border border-surface-300 dark:border-surface-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+    )
+                {/* Recurrence Configuration */}
+                <div className="space-y-4">
+                  <h4 className="text-lg font-semibold text-surface-900 dark:text-white border-b border-surface-200 dark:border-surface-700 pb-2">
+                    Recurrence Pattern
+                  </h4>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
+                        Repeat Type
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {recurringPatterns.map(pattern => (
+                          <button
+                            key={pattern.value}
+                            type="button"
+                            onClick={() => setFormData({
+                              ...formData,
+                              recurringPattern: { ...formData.recurringPattern, type: pattern.value }
+                            })}
+                            className={`flex items-center space-x-2 p-3 rounded-xl text-sm font-medium transition-all ${
+                              formData.recurringPattern.type === pattern.value
+                                ? 'bg-primary text-white shadow-soft'
+                                : 'bg-surface-100 dark:bg-surface-700 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-600'
+                            }`}
+                          >
+                            <ApperIcon name={pattern.icon} className="w-4 h-4" />
+                            <span>{pattern.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+  }
+                    <div>
+                      <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
+                        Repeat Every
+                      </label>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="number"
+                          min="1"
+                          max="365"
+                          value={formData.recurringPattern.interval}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            recurringPattern: { ...formData.recurringPattern, interval: parseInt(e.target.value) || 1 }
+                          })}
+                          className="flex-1 px-4 py-3 bg-surface-50 dark:bg-surface-700 border border-surface-300 dark:border-surface-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                        <span className="text-sm text-surface-600 dark:text-surface-400">
+                          {formData.recurringPattern.type}(s)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Weekly Days Selection */}
+                  {formData.recurringPattern.type === 'weekly' && (
+                    <div>
+                      <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
+                        Days of the Week *
+                      </label>
+                      <div className="grid grid-cols-7 gap-2">
+                        {daysOfWeek.map(day => (
+                          <button
+                            key={day.value}
+                            type="button"
+                            onClick={() => {
+                              const currentDays = formData.recurringPattern.daysOfWeek || []
+                              const newDays = currentDays.includes(day.value)
+                                ? currentDays.filter(d => d !== day.value)
+                                : [...currentDays, day.value]
+                              
+                              setFormData({
+                                ...formData,
+                                recurringPattern: { ...formData.recurringPattern, daysOfWeek: newDays }
+                              })
+                            }}
+                            className={`p-2 rounded-lg text-xs font-medium transition-all ${
+                              formData.recurringPattern.daysOfWeek?.includes(day.value)
+                                ? 'bg-primary text-white shadow-soft'
+                                : 'bg-surface-100 dark:bg-surface-700 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-600'
+                            }`}
+                          >
+                            {day.short}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
   // Task Detail Modal Component
+                  {/* End Conditions */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
+                        End Date (Optional)
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.recurringPattern.endDate || ''}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          recurringPattern: { ...formData.recurringPattern, endDate: e.target.value || null }
+                        })}
+                        className="w-full px-4 py-3 bg-surface-50 dark:bg-surface-700 border border-surface-300 dark:border-surface-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
   const TaskDetailModal = ({ task, onClose }) => {
+                    <div>
+                      <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
+                        Max Occurrences (Optional)
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="1000"
+                        value={formData.recurringPattern.maxOccurrences || ''}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          recurringPattern: { ...formData.recurringPattern, maxOccurrences: parseInt(e.target.value) || null }
+                        })}
+                        className="w-full px-4 py-3 bg-surface-50 dark:bg-surface-700 border border-surface-300 dark:border-surface-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
+                        placeholder="e.g., 10"
+                      />
+                    </div>
+                  </div>
+                </div>
     if (!task) return null
+                {/* Assignment */}
+                <div>
+                  <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
+                    Assign to Team Member
+                  </label>
+                  <select
+                    value={formData.assignedTo || ''}
+                    onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value || null })}
+                    className="w-full px-4 py-3 bg-surface-50 dark:bg-surface-700 border border-surface-300 dark:border-surface-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="">Unassigned</option>
+                    {teamMembers.map(member => (
+                      <option key={member.id} value={member.id}>
+                        {member.name} - {member.role}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 pt-4">
+                  <button
+                    type="submit"
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white font-semibold rounded-xl shadow-soft hover:shadow-card transition-all duration-300"
+                  >
+                    Create Recurring Task Series
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowRecurringForm(false)}
+                    className="px-6 py-3 bg-surface-100 dark:bg-surface-700 text-surface-700 dark:text-surface-300 font-semibold rounded-xl hover:bg-surface-200 dark:hover:bg-surface-600 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    )
+  }
 
     const priorityConfig = getPriorityConfig(task.priority)
     const statusConfig = getStatusConfig(task.status)
@@ -941,6 +1679,9 @@ const MainFeature = () => {
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
+      {/* Recurring Task Form */}
+      <RecurringTaskForm />
+
       {/* Task Detail Modal */}
       <AnimatePresence>
         {selectedTask && (
@@ -1091,6 +1832,9 @@ const MainFeature = () => {
           <CalendarView />
         </motion.div>
       )}
+
+      {/* Recurring Task Manager */}
+      <RecurringTaskManager />
 
       {/* Task Form Modal */}
       <AnimatePresence>
@@ -1357,6 +2101,22 @@ const MainFeature = () => {
           ) : (
             sortedTasks.map((task, index) => {
               const priorityConfig = getPriorityConfig(task.priority)
+                <motion.div
+                  key={task.id}
+                  className={`group relative bg-white/80 dark:bg-surface-800/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-soft hover:shadow-task-card border border-white/20 transition-all duration-300 ${
+                    task.status === 'completed' ? 'opacity-75' : ''
+                  } ${isOverdue ? 'border-red-300 dark:border-red-600' : ''} ${
+                    selectedTask?.id === task.id ? 'ring-2 ring-primary shadow-lg' : ''
+                  } ${task.recurringParentId ? 'border-l-4 border-l-primary' : ''}`}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
+                  layout
+                >
+                  {/* Recurring Task Indicator */}
+                  {task.recurringParentId && (
+                    <div className="absolute top-2 left-2 flex items-center space-x-1 px-2 py-1 bg-primary/10 text-primary rounded-lg text-xs">
               const statusConfig = getStatusConfig(task.status)
               const categoryConfig = getCategoryConfig(task.category)
               const isOverdue = isPast(new Date(task.dueDate)) && task.status !== 'completed'
@@ -1370,6 +2130,10 @@ const MainFeature = () => {
                   } ${isOverdue ? 'border-red-300 dark:border-red-600' : ''} ${
                     selectedTask?.id === task.id ? 'ring-2 ring-primary shadow-lg' : ''
                   }`}
+                      <ApperIcon name="Repeat" className="w-3 h-3" />
+                      <span>Recurring</span>
+                    </div>
+                  )}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
