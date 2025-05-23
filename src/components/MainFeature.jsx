@@ -311,6 +311,8 @@ const MainFeature = () => {
 
   // Comment management functions
   const addComment = (taskId, commentText, parentId = null) => {
+    console.log('Adding comment:', { taskId, commentText, parentId })
+    
     if (!commentText.trim()) {
       toast.error('Comment cannot be empty!')
       return
@@ -325,6 +327,8 @@ const MainFeature = () => {
       parentId,
       replies: []
     }
+
+    console.log('New comment object:', newComment)
 
     setTasks(tasks.map(task => {
       if (task.id === taskId) {
@@ -352,6 +356,8 @@ const MainFeature = () => {
           // Add as new top-level comment
           updatedComments.push(newComment)
         }
+        
+        console.log('Updated comments for task:', updatedComments)
         return {
           ...task,
           comments: updatedComments,
@@ -360,6 +366,8 @@ const MainFeature = () => {
       }
       return task
     }))
+
+    console.log('Tasks after comment addition:', tasks)
 
     toast.success(parentId ? 'Reply added successfully!' : 'Comment added successfully!')
   }
@@ -695,6 +703,8 @@ const MainFeature = () => {
 
     return (
       <div className="mt-6 pt-6 border-t border-surface-200 dark:border-surface-700">
+        {console.log('Rendering CommentSection for task:', task.id, 'Comments:', task.comments)}
+        
         <div className="flex items-center justify-between mb-4">
           <h4 className="text-lg font-semibold text-surface-900 dark:text-white">
             Comments ({getCommentCount(task.comments || [])})
@@ -739,6 +749,7 @@ const MainFeature = () => {
         </form>
 
         {/* Comments list */}
+        {console.log('About to render comments list. Comments array:', task.comments)}
         <div className="space-y-4">
           {task.comments && task.comments.length > 0 ? (
             task.comments.map(comment => renderComment(comment))
